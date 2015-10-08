@@ -113,12 +113,21 @@ public class CliDaemon implements Runnable {
 						.setTarget(trgHost))
 				.build();
 
+		Protocol.AdminResponse response = null;
 		try (ClientEndpoint cEnd = Global.getProperties().getWorkers().get(srcHost).getAdminChannel().getClientEndpoint();
-			 DataOutputStream dOut = new DataOutputStream(cEnd.getSocket().getOutputStream())) {
+			 DataOutputStream dOut = new DataOutputStream(cEnd.getSocket().getOutputStream());
+			 DataInputStream dIn = new DataInputStream(cEnd.getSocket().getInputStream())) {
 			ChannelUtils.sendAdminMessage(message, dOut);
+
+			response = ChannelUtils.recvAdminResponse(dIn);
 		}
-		// TODO Receive OK
-		// TODO Start sending traffic
+		if (response == null)
+			throw new Exception("Didn't receive response");
+		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
+			// TODO Start sending traffic
+		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
+			throw new Exception("Error migrating container. Message: " + response.getPayload());
+
 	}
 
 	private void handleStart(String host, String containerName) throws Exception {
@@ -137,12 +146,15 @@ public class CliDaemon implements Runnable {
 			response = ChannelUtils.recvAdminResponse(dIn);
 		}
 
-		if (response.getType() == Protocol.AdminResponse.Type.OK) {
+		if (response == null)
+			throw new Exception("Didn't receive response");
+		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
+			// Start forwarder
 			new Thread(new Listener(new InetSocketAddress(
 					Global.getProperties().getWorkers().get(host).getDataChannel().getClientEndpoint().getAddress(),
 					Global.getProperties().getWorkers().get(host).getDataChannel().getClientEndpoint().getPort()
 			))).start();
-		} else
+		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error starting container. Message: " + response.getPayload());
 	}
 }
