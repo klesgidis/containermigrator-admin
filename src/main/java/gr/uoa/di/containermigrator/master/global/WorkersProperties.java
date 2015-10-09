@@ -1,5 +1,6 @@
 package gr.uoa.di.containermigrator.master.global;
 
+import gr.uoa.di.containermigrator.master.communication.channel.Endpoint;
 import gr.uoa.di.containermigrator.master.communication.channel.EndpointCollection;
 
 import java.io.FileInputStream;
@@ -15,7 +16,7 @@ import java.util.Properties;
  */
 public class WorkersProperties implements Preferences {
 
-	public Map<String, EndpointCollection> workers = new HashMap<>();
+	public Map<String, Endpoint> workers = new HashMap<>();
 
 	public WorkersProperties(String propertyFile) {
 		ClassLoader classLoader = getClass().getClassLoader();
@@ -31,14 +32,13 @@ public class WorkersProperties implements Preferences {
 			for (String worker : workers) {
 				String addr = prop.getProperty("node." + worker + ".address");
 
-				int dataPort = Integer.parseInt(prop.getProperty("node." + worker + ".data.port"));
-				int dataListenPort = Integer.parseInt(prop.getProperty("node." + worker + ".data.listenPort"));
+				//int dataPort = Integer.parseInt(prop.getProperty("node." + worker + ".data.port"));
+				//int dataListenPort = Integer.parseInt(prop.getProperty("node." + worker + ".data.listenPort"));
 
 				int adminPort = Integer.parseInt(prop.getProperty("node." + worker + ".admin.port"));
 				int adminListenPort = Integer.parseInt(prop.getProperty("node." + worker + ".admin.listenPort"));
 
-				this.workers.put(worker, new EndpointCollection(addr, dataPort, dataListenPort,
-						adminPort, adminListenPort));
+				this.workers.put(worker, new Endpoint(addr, adminPort, adminListenPort));
 			}
 
 		} catch (IOException|NullPointerException e) {
@@ -46,7 +46,7 @@ public class WorkersProperties implements Preferences {
 		}
 	}
 
-	public Map<String, EndpointCollection> getWorkers() {
+	public Map<String, Endpoint> getWorkers() {
 		return workers;
 	}
 }

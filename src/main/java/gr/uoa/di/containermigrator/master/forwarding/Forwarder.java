@@ -51,7 +51,6 @@ public class Forwarder implements Runnable, Closeable, Preferences {
 			} catch (IOException e) {
 
 			}
-			System.out.println(Thread.currentThread().getName() + "-" + this.name + ": Finished");
 		}
 
 	}

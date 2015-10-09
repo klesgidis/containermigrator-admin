@@ -22,8 +22,8 @@ public class ChannelUtils {
 	}
 
 	public static void multicastAdminMessage(Protocol.AdminMessage message) throws Exception {
-		for (Map.Entry<String, EndpointCollection> pair : Global.getProperties().getWorkers().entrySet()) {
-			try (ClientEndpoint cEnd = pair.getValue().getAdminChannel().getClientEndpoint();
+		for (Map.Entry<String, Endpoint> pair : Global.getProperties().getWorkers().entrySet()) {
+			try (ClientEndpoint cEnd = pair.getValue().getClientEndpoint();
 				 Socket sock = cEnd.getSocket();
 				 DataOutputStream dOut = new DataOutputStream(sock.getOutputStream())) {
 

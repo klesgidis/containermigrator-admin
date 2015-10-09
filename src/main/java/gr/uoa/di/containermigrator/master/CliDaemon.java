@@ -2,6 +2,7 @@ package gr.uoa.di.containermigrator.master;
 
 import gr.uoa.di.containermigrator.master.communication.channel.ChannelUtils;
 import gr.uoa.di.containermigrator.master.communication.channel.ClientEndpoint;
+import gr.uoa.di.containermigrator.master.communication.channel.Endpoint;
 import gr.uoa.di.containermigrator.master.communication.channel.EndpointCollection;
 import gr.uoa.di.containermigrator.master.communication.protocol.Protocol;
 import gr.uoa.di.containermigrator.master.forwarding.Listener;
@@ -59,8 +60,8 @@ public class CliDaemon implements Runnable {
 					}
 					case nodes: {
 						// TODO Have a thread that pings to see if it is active
-						Map<String, EndpointCollection> peers = Global.getProperties().getWorkers();
-						for (Map.Entry<String, EndpointCollection> peer : peers.entrySet()) {
+						Map<String, Endpoint> peers = Global.getProperties().getWorkers();
+						for (Map.Entry<String, Endpoint> peer : peers.entrySet()) {
 							System.out.println(peer.getKey());
 						}
 						break;
@@ -114,7 +115,7 @@ public class CliDaemon implements Runnable {
 				.build();
 
 		Protocol.AdminResponse response = null;
-		try (ClientEndpoint cEnd = Global.getProperties().getWorkers().get(srcHost).getAdminChannel().getClientEndpoint();
+		try (ClientEndpoint cEnd = Global.getProperties().getWorkers().get(srcHost).getClientEndpoint();
 			 DataOutputStream dOut = new DataOutputStream(cEnd.getSocket().getOutputStream());
 			 DataInputStream dIn = new DataInputStream(cEnd.getSocket().getInputStream())) {
 			ChannelUtils.sendAdminMessage(message, dOut);
@@ -124,6 +125,7 @@ public class CliDaemon implements Runnable {
 		if (response == null)
 			throw new Exception("Didn't receive response");
 		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
+			System.out.println("OK");
 			// TODO Start sending traffic
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error migrating container. Message: " + response.getPayload());
@@ -138,7 +140,7 @@ public class CliDaemon implements Runnable {
 				.build();
 
 		Protocol.AdminResponse response = null;
-		try (ClientEndpoint cEnd = Global.getProperties().getWorkers().get(host).getAdminChannel().getClientEndpoint();
+		try (ClientEndpoint cEnd = Global.getProperties().getWorkers().get(host).getClientEndpoint();
 			 DataOutputStream dOut = new DataOutputStream(cEnd.getSocket().getOutputStream());
 			 DataInputStream dIn = new DataInputStream(cEnd.getSocket().getInputStream())) {
 			ChannelUtils.sendAdminMessage(message, dOut);
@@ -149,11 +151,14 @@ public class CliDaemon implements Runnable {
 		if (response == null)
 			throw new Exception("Didn't receive response");
 		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
+			// We expect the port that listens for the specific container
+			int port = Integer.parseInt(response.getPayload());
 			// Start forwarder
 			new Thread(new Listener(new InetSocketAddress(
-					Global.getProperties().getWorkers().get(host).getDataChannel().getClientEndpoint().getAddress(),
-					Global.getProperties().getWorkers().get(host).getDataChannel().getClientEndpoint().getPort()
+					Global.getProperties().getWorkers().get(host).getClientEndpoint().getAddress(),
+					port
 			))).start();
+			System.out.println("OK");
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error starting container. Message: " + response.getPayload());
 	}
