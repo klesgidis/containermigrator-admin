@@ -13,9 +13,11 @@ import java.net.Socket;
  */
 public class Listener implements Runnable, Preferences {
 	private final InetSocketAddress address;
+	private final String monitorKey;
 
-	public Listener(InetSocketAddress address) {
+	public Listener(InetSocketAddress address, String monitorKey) {
 		this.address = address;
+		this.monitorKey = monitorKey;
 	}
 
 	public void run() {
@@ -27,10 +29,12 @@ public class Listener implements Runnable, Preferences {
 
 			while (true) {
 				Socket src = serverSocket.accept();
-				System.out.println("Accepted Connection from " + src.getInetAddress().toString());
 
-				new Thread(new Processor(src, new Socket(this.address.getAddress().toString().replace("/", ""), this.address.getPort())))
-						.start();
+				new Thread(new Processor(
+						src,
+						new Socket(this.address.getAddress().toString().replace("/", ""), this.address.getPort()),
+						this.monitorKey)
+				).start();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

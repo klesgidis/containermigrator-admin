@@ -5,15 +5,9 @@ package gr.uoa.di.containermigrator.master.forwarding;
  * @email klesgidis@di.uoa.gr
  */
 public class StateMonitor {
-	private static StateMonitor ourInstance = new StateMonitor();
-
-	public static StateMonitor getInstance() {
-		return ourInstance;
-	}
-
 	private boolean isMigrating;
 
-	private StateMonitor() {
+	public StateMonitor() {
 		this.isMigrating = false;
 	}
 

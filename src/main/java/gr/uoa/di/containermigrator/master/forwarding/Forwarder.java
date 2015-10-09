@@ -1,5 +1,6 @@
 package gr.uoa.di.containermigrator.master.forwarding;
 
+import gr.uoa.di.containermigrator.master.global.Global;
 import gr.uoa.di.containermigrator.master.global.Preferences;
 
 import java.io.Closeable;
@@ -14,13 +15,15 @@ import java.net.SocketException;
  */
 public class Forwarder implements Runnable, Closeable, Preferences {
 	private String name;
+	private String monitorKey;
 	private InputStream in;
 	private OutputStream out;
 
-	public Forwarder(String name, InputStream in, OutputStream out) {
+	public Forwarder(String name, InputStream in, OutputStream out, String monitorKey) {
 		this.name = name;
 		this.in = in;
 		this.out = out;
+		this.monitorKey = monitorKey;
 	}
 
 	public void run() {
@@ -29,9 +32,7 @@ public class Forwarder implements Runnable, Closeable, Preferences {
 
 		try {
 			while ((count = in.read(buf)) != -1) {
-				StateMonitor.getInstance().checkState();
-//				System.out.println(Thread.currentThread().getName() + "-" + this.name
-//						+ ": " + buf.toString());
+				Global.getMonitors().get(this.monitorKey).checkState();
 				out.write(buf, 0, count);
 			}
 		} catch (SocketException e) {

@@ -6,6 +6,7 @@ import gr.uoa.di.containermigrator.master.communication.channel.Endpoint;
 import gr.uoa.di.containermigrator.master.communication.channel.EndpointCollection;
 import gr.uoa.di.containermigrator.master.communication.protocol.Protocol;
 import gr.uoa.di.containermigrator.master.forwarding.Listener;
+import gr.uoa.di.containermigrator.master.forwarding.StateMonitor;
 import gr.uoa.di.containermigrator.master.global.Global;
 
 import java.io.BufferedReader;
@@ -89,22 +90,11 @@ public class CliDaemon implements Runnable {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-
-//		String s;
-//		try {
-//			while ((s = in.readLine()) != null && s.length() != 0) {
-//				if (s.equals("0")) {
-//					StateMonitor.getInstance().migrationState(false);
-//				} else if (s.equals("1")) {
-//					StateMonitor.getInstance().migrationState(true);
-//				}
-//			}
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
 	}
 
 	private void handleMigrate(String srcHost, String trgHost, String container) throws Exception {
+		Global.getMonitors().get(srcHost+container).migrationState(true);
+
 		// TODO Stop sending traffic
 		Protocol.AdminMessage message = Protocol.AdminMessage.newBuilder()
 				.setType(Protocol.AdminMessage.Type.MIGRATE)
@@ -125,11 +115,11 @@ public class CliDaemon implements Runnable {
 		if (response == null)
 			throw new Exception("Didn't receive response");
 		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
+			Global.getMonitors().get(srcHost + container).migrationState(false);
 			System.out.println("OK");
 			// TODO Start sending traffic
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error migrating container. Message: " + response.getPayload());
-
 	}
 
 	private void handleStart(String host, String containerName) throws Exception {
@@ -152,12 +142,17 @@ public class CliDaemon implements Runnable {
 			throw new Exception("Didn't receive response");
 		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
 			// We expect the port that listens for the specific container
+			String address = Global.getProperties().getWorkers().get(host).getClientEndpoint().getAddress();
 			int port = Integer.parseInt(response.getPayload());
+			String monitorKey = host+containerName;
+
+			Global.getMonitors().putIfAbsent(monitorKey, new StateMonitor());
+
 			// Start forwarder
 			new Thread(new Listener(new InetSocketAddress(
-					Global.getProperties().getWorkers().get(host).getClientEndpoint().getAddress(),
+					address,
 					port
-			))).start();
+			), monitorKey)).start();
 			System.out.println("OK");
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error starting container. Message: " + response.getPayload());
