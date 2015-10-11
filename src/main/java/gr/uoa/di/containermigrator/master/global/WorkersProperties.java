@@ -16,7 +16,9 @@ import java.util.Properties;
  */
 public class WorkersProperties implements Preferences {
 
-	public Map<String, Endpoint> workers = new HashMap<>();
+	private Map<String, Endpoint> workers = new HashMap<>();
+
+	private Map<String, String> addressToWorkerMapping = new HashMap<>();
 
 	public WorkersProperties(String propertyFile) {
 		ClassLoader classLoader = getClass().getClassLoader();
@@ -30,15 +32,13 @@ public class WorkersProperties implements Preferences {
 
 			String [] workers = prop.getProperty("nodes").split(",");
 			for (String worker : workers) {
-				String addr = prop.getProperty("node." + worker + ".address");
-
-				//int dataPort = Integer.parseInt(prop.getProperty("node." + worker + ".data.port"));
-				//int dataListenPort = Integer.parseInt(prop.getProperty("node." + worker + ".data.listenPort"));
+				String host = prop.getProperty("node." + worker + ".host");
 
 				int adminPort = Integer.parseInt(prop.getProperty("node." + worker + ".admin.port"));
 				int adminListenPort = Integer.parseInt(prop.getProperty("node." + worker + ".admin.listenPort"));
 
-				this.workers.put(worker, new Endpoint(addr, adminPort, adminListenPort));
+				this.workers.put(worker, new Endpoint(host, adminPort, adminListenPort));
+				this.addressToWorkerMapping.put(host, worker);
 			}
 
 		} catch (IOException|NullPointerException e) {
@@ -48,5 +48,9 @@ public class WorkersProperties implements Preferences {
 
 	public Map<String, Endpoint> getWorkers() {
 		return workers;
+	}
+
+	public Map<String, String> getAddressToWorkerMapping() {
+		return addressToWorkerMapping;
 	}
 }

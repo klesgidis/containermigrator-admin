@@ -1,11 +1,15 @@
 package gr.uoa.di.containermigrator.master.forwarding;
 
+import gr.uoa.di.containermigrator.master.global.Preferences;
+
 /**
  * @author Kyriakos Lesgidis
  * @email klesgidis@di.uoa.gr
  */
-public class StateMonitor {
+public class StateMonitor implements Preferences{
 	private boolean isMigrating;
+
+	private byte[] buffer = new byte[BUF_SIZE];
 
 	public StateMonitor() {
 		this.isMigrating = false;
@@ -19,5 +23,9 @@ public class StateMonitor {
 	public synchronized void migrationState(boolean value) {
 		this.isMigrating = value;
 		notifyAll();
+	}
+
+	public byte[] getBuffer() {
+		return buffer;
 	}
 }

@@ -6,6 +6,7 @@ import gr.uoa.di.containermigrator.master.global.Global;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
 
@@ -39,5 +40,17 @@ public class ChannelUtils {
 		return Protocol.AdminResponse.parseDelimitedFrom(dIn);
 	}
 
+	public static int fetchAvailablePort() {
+		int port = -1;
+		try (ServerSocket ss = new ServerSocket(0)) {
+			port = ss.getLocalPort();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return port;
+	}
 
+	public static String generateKey(String host, String container) {
+		return host.replaceAll("/", "") + "_" + container.replaceAll("/", "");
+	}
 }

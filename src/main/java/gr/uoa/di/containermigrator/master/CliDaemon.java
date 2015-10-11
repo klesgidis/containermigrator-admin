@@ -1,13 +1,13 @@
 package gr.uoa.di.containermigrator.master;
 
+import com.sun.istack.internal.Nullable;
 import gr.uoa.di.containermigrator.master.communication.channel.ChannelUtils;
 import gr.uoa.di.containermigrator.master.communication.channel.ClientEndpoint;
 import gr.uoa.di.containermigrator.master.communication.channel.Endpoint;
-import gr.uoa.di.containermigrator.master.communication.channel.EndpointCollection;
 import gr.uoa.di.containermigrator.master.communication.protocol.Protocol;
-import gr.uoa.di.containermigrator.master.forwarding.Listener;
 import gr.uoa.di.containermigrator.master.forwarding.StateMonitor;
 import gr.uoa.di.containermigrator.master.global.Global;
+import gr.uoa.di.containermigrator.master.global.MigrationInfo;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -43,18 +43,31 @@ public class CliDaemon implements Runnable {
 				switch (cmd) {
 					case start: {
 						if (args.length < 3) { usage(); break; }
-						String host = args[1];
+						String host = this.generateHost(args[1]);
 						String container = args[2];
+
+						if (host == null) {
+							System.out.println("Worker " + args[1] + " doesn't exist.");
+							break;
+						}
 
 						handleStart(host, container);
 						break;
 					}
 					case migrate: {
 						if (args.length < 4) { usage(); break; }
-						String srcHost = args[1];
-						String trgHost = args[2];
+						String srcHost = this.generateHost(args[1]);
+						String trgHost = this.generateHost(args[2]);
 						String container = args[3];
-						// TODO Migrate container from src to trg node
+
+						if (srcHost == null) {
+							System.out.println("Worker " + args[1] + " doesn't exist.");
+							break;
+						}
+						if (trgHost == null) {
+							System.out.println("Worker " + args[2] + " doesn't exist.");
+							break;
+						}
 
 						handleMigrate(srcHost, trgHost, container);
 						break;
@@ -83,6 +96,11 @@ public class CliDaemon implements Runnable {
 						System.out.println(sb.toString());
 						break;
 					}
+					case "interrupt":{
+						String key = ChannelUtils.generateKey("worker1", "tomcat1");
+						Global.getMigrationInfos().get(key).updateMigrationInfo("worker2", "tomcat2", 12345 );
+						break;
+					}
 					default:
 						usage();
 				}
@@ -92,10 +110,14 @@ public class CliDaemon implements Runnable {
 		}
 	}
 
-	private void handleMigrate(String srcHost, String trgHost, String container) throws Exception {
-		Global.getMonitors().get(srcHost+container).migrationState(true);
+	//region Handlers
 
-		// TODO Stop sending traffic
+	private void handleMigrate(String srcHost, String trgHost, String container) throws Exception {
+		String key = ChannelUtils.generateKey(srcHost, container);
+
+		// Stop traffic
+		Global.getMigrationInfos().get(key).getMonitor().migrationState(true);
+
 		Protocol.AdminMessage message = Protocol.AdminMessage.newBuilder()
 				.setType(Protocol.AdminMessage.Type.MIGRATE)
 				.setMigrate(Protocol.AdminMessage.Migrate.newBuilder()
@@ -115,18 +137,26 @@ public class CliDaemon implements Runnable {
 		if (response == null)
 			throw new Exception("Didn't receive response");
 		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
-			Global.getMonitors().get(srcHost + container).migrationState(false);
+			// TODO Receive new Container name
+			// TODO Receive new Listen port
+			String newContainerName = "tomcat2";
+			int trgListenPort = 1234;
+
+			// Add listener to forward traffic to new host
+			Global.getMigrationInfos().get(key).updateMigrationInfo(trgHost, newContainerName, trgListenPort);
+
+			// Resume traffic
+			Global.getMigrationInfos().get(key).getMonitor().migrationState(false);
 			System.out.println("OK");
-			// TODO Start sending traffic
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error migrating container. Message: " + response.getPayload());
 	}
 
-	private void handleStart(String host, String containerName) throws Exception {
+	private void handleStart(String host, String container) throws Exception {
 		Protocol.AdminMessage message = Protocol.AdminMessage.newBuilder()
 				.setType(Protocol.AdminMessage.Type.START)
 				.setStart(Protocol.AdminMessage.Start.newBuilder()
-						.setContainer(containerName))
+						.setContainer(container))
 				.build();
 
 		Protocol.AdminResponse response = null;
@@ -144,17 +174,49 @@ public class CliDaemon implements Runnable {
 			// We expect the port that listens for the specific container
 			String address = Global.getProperties().getWorkers().get(host).getClientEndpoint().getAddress();
 			int port = Integer.parseInt(response.getPayload());
-			String monitorKey = host+containerName;
+			int listenPort = ChannelUtils.fetchAvailablePort();
 
-			Global.getMonitors().putIfAbsent(monitorKey, new StateMonitor());
+			String key = ChannelUtils.generateKey(host, container);
+			Global.getMigrationInfos().put(key, new MigrationInfo(
+					host,
+					container,
+					new StateMonitor()
+			));
 
-			// Start forwarder
-			new Thread(new Listener(new InetSocketAddress(
-					address,
-					port
-			), monitorKey)).start();
+			// Start listener for forwarding data
+			Global.getMigrationInfos().get(key)
+					.setListener(new InetSocketAddress(address, port), listenPort);
+			Global.getMigrationInfos().get(key)
+					.startListener();
+
 			System.out.println("OK");
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error starting container. Message: " + response.getPayload());
 	}
+
+	//endregion
+
+	//region Utilities
+
+	/**
+	 * Returns host name if user gave IP. This is used to generate always the same
+	 * result depending on user input.
+	 * @param host IP or worker name
+	 * @return
+	 */
+	@Nullable
+	private String generateHost(String host) {
+		// if user gave IP return worker name
+		if (Global.getProperties().getAddressToWorkerMapping().containsKey(host))
+			return Global.getProperties().getAddressToWorkerMapping().get(host);
+
+		// if user gave worker name return worker name
+		if (Global.getProperties().getWorkers().containsKey(host))
+			return host;
+
+		// worker name doesn't exist
+		return null;
+	}
+
+	//endregion
 }

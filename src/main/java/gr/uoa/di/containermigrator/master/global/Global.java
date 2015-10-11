@@ -1,10 +1,9 @@
 package gr.uoa.di.containermigrator.master.global;
 
-import gr.uoa.di.containermigrator.master.communication.channel.Endpoint;
 import gr.uoa.di.containermigrator.master.forwarding.StateMonitor;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -22,9 +21,10 @@ public class Global implements Preferences {
 		return properties;
 	}
 
-	public static ConcurrentMap<String, StateMonitor> monitors = null;
-	public static synchronized ConcurrentMap<String, StateMonitor> getMonitors() {
-		if (monitors == null) monitors = new ConcurrentHashMap<>();
-		return monitors;
+	public static ConcurrentMap<String, MigrationInfo> migrationInfos = null;
+	public static synchronized ConcurrentMap<String, MigrationInfo> getMigrationInfos() {
+		if (migrationInfos == null) migrationInfos = new ConcurrentHashMap<>();
+		return migrationInfos;
 	}
+
 }
