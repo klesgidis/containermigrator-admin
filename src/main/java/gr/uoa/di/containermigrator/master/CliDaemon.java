@@ -6,6 +6,7 @@ import gr.uoa.di.containermigrator.master.communication.channel.ClientEndpoint;
 import gr.uoa.di.containermigrator.master.communication.channel.Endpoint;
 import gr.uoa.di.containermigrator.master.communication.protocol.Protocol;
 import gr.uoa.di.containermigrator.master.forwarding.StateMonitor;
+import gr.uoa.di.containermigrator.master.global.GeneralUtils;
 import gr.uoa.di.containermigrator.master.global.Global;
 import gr.uoa.di.containermigrator.master.global.MigrationInfo;
 
@@ -42,7 +43,7 @@ public class CliDaemon implements Runnable {
 				String cmd = args[0];
 				switch (cmd) {
 					case start: {
-						if (args.length < 3) { usage(); break; }
+						if (args.length != 3) { usage(); break; }
 						String host = this.generateHost(args[1]);
 						String container = args[2];
 
@@ -55,7 +56,7 @@ public class CliDaemon implements Runnable {
 						break;
 					}
 					case migrate: {
-						if (args.length < 4) { usage(); break; }
+						if (args.length != 4) { usage(); break; }
 						String srcHost = this.generateHost(args[1]);
 						String trgHost = this.generateHost(args[2]);
 						String container = args[3];
@@ -73,7 +74,6 @@ public class CliDaemon implements Runnable {
 						break;
 					}
 					case nodes: {
-						// TODO Have a thread that pings to see if it is active
 						Map<String, Endpoint> peers = Global.getProperties().getWorkers();
 						for (Map.Entry<String, Endpoint> peer : peers.entrySet()) {
 							System.out.println(peer.getKey());
@@ -81,23 +81,28 @@ public class CliDaemon implements Runnable {
 						break;
 					}
 					case list: {
-						if (args.length < 2) { usage(); break; }
-						// TODO Show containers of specific node and its state
-
+						//if (args.length != 2) { usage(); break; }
+						Global.printMigrationInfoKeys();
 						break;
 					}
 					case help: {
 						StringBuilder sb = new StringBuilder("");
-						sb.append("-- start <container-name>")
-								.append(":\t\tStarts an already existing container ")
-								.append("and  returns the binding INetAddress. \n");
-						sb.append("-- help:\t\t\t\t\t\t")
-								.append("Returns all the available commands.");
+						sb.append("-- start <worker-name> <container-name> :\n")
+								.append("\t\tStarts an already existing container ")
+								.append("and returns the listening port. \n");
+						sb.append("-- migrate <src-worker> <trg-worker> <container-name> :\n")
+								.append("\t\tMigrate <container-name> container from ")
+								.append("<src-worker> to <trg-worker>. \n");
+						sb.append("-- nodes :\n")
+								.append("\t\tShows the available nodes")
+								.append("for migration. \n");
+						sb.append("-- help :\n")
+								.append("\t\tDisplays the available commands.");
 						System.out.println(sb.toString());
 						break;
 					}
 					case "interrupt":{
-						String key = ChannelUtils.generateKey("worker1", "tomcat1");
+						String key = GeneralUtils.generateKey("worker1", "tomcat1");
 						Global.getMigrationInfos().get(key).updateMigrationInfo("worker2", "tomcat2", 12345 );
 						break;
 					}
@@ -113,7 +118,7 @@ public class CliDaemon implements Runnable {
 	//region Handlers
 
 	private void handleMigrate(String srcHost, String trgHost, String container) throws Exception {
-		String key = ChannelUtils.generateKey(srcHost, container);
+		String key = GeneralUtils.generateKey(srcHost, container);
 
 		// Stop traffic
 		Global.getMigrationInfos().get(key).getMonitor().migrationState(true);
@@ -137,16 +142,22 @@ public class CliDaemon implements Runnable {
 		if (response == null)
 			throw new Exception("Didn't receive response");
 		else if (response.getType() == Protocol.AdminResponse.Type.OK) {
-			// TODO Receive new Container name
-			// TODO Receive new Listen port
-			String newContainerName = "tomcat2";
-			int trgListenPort = 1234;
+			// TODO This has to change with specific responses
+			String[] tokens = response.getPayload().split("#");
+
+			String newContainerName = tokens[0];
+			int trgListenPort = Integer.parseInt(tokens[1]);
 
 			// Add listener to forward traffic to new host
 			Global.getMigrationInfos().get(key).updateMigrationInfo(trgHost, newContainerName, trgListenPort);
 
+			// Update key name
+			String newKey = GeneralUtils.generateKey(trgHost, newContainerName);
+			MigrationInfo mi = Global.getMigrationInfos().remove(key);
+			Global.getMigrationInfos().put(newKey, mi);
+
 			// Resume traffic
-			Global.getMigrationInfos().get(key).getMonitor().migrationState(false);
+			Global.getMigrationInfos().get(newKey).getMonitor().migrationState(false);
 			System.out.println("OK");
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error migrating container. Message: " + response.getPayload());
@@ -174,9 +185,9 @@ public class CliDaemon implements Runnable {
 			// We expect the port that listens for the specific container
 			String address = Global.getProperties().getWorkers().get(host).getClientEndpoint().getAddress();
 			int port = Integer.parseInt(response.getPayload());
-			int listenPort = ChannelUtils.fetchAvailablePort();
+			int listenPort = GeneralUtils.fetchAvailablePort();
 
-			String key = ChannelUtils.generateKey(host, container);
+			String key = GeneralUtils.generateKey(host, container);
 			Global.getMigrationInfos().put(key, new MigrationInfo(
 					host,
 					container,

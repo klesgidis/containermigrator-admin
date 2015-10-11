@@ -31,7 +31,6 @@ public class MigrationInfo {
 	}
 
 	public void updateMigrationInfo(String host, String container, int port) {
-		System.out.println("Restart Listener");
 		this.host = host;
 		this.container = container;
 		String address = Global.getProperties().getWorkers().get(this.host).getClientEndpoint().getAddress();
@@ -42,7 +41,6 @@ public class MigrationInfo {
 		this.listener = new Listener(new InetSocketAddress(address, port), listenPort, this.monitor);
 		this.listener.start();
 		System.out.println("DONE");
-		// TODO update structures and keys
 	}
 
 	public void setListener(InetSocketAddress address, int listenPort) {

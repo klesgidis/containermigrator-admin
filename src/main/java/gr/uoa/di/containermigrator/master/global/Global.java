@@ -3,6 +3,7 @@ package gr.uoa.di.containermigrator.master.global;
 import gr.uoa.di.containermigrator.master.forwarding.StateMonitor;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -27,4 +28,9 @@ public class Global implements Preferences {
 		return migrationInfos;
 	}
 
+	public static void printMigrationInfoKeys() {
+		System.out.println("Migration Infos (" + getMigrationInfos().size() + ")");
+		for (Map.Entry<String, MigrationInfo> entry : getMigrationInfos().entrySet())
+			System.out.println(entry.getKey());
+	}
 }

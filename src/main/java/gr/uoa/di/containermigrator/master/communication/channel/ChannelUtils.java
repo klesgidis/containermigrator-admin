@@ -39,18 +39,4 @@ public class ChannelUtils {
 	public static Protocol.AdminResponse recvAdminResponse(DataInputStream dIn) throws IOException {
 		return Protocol.AdminResponse.parseDelimitedFrom(dIn);
 	}
-
-	public static int fetchAvailablePort() {
-		int port = -1;
-		try (ServerSocket ss = new ServerSocket(0)) {
-			port = ss.getLocalPort();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return port;
-	}
-
-	public static String generateKey(String host, String container) {
-		return host.replaceAll("/", "") + "_" + container.replaceAll("/", "");
-	}
 }
