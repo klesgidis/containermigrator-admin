@@ -121,7 +121,7 @@ public class CliDaemon implements Runnable {
 		String key = GeneralUtils.generateKey(srcHost, container);
 
 		// Stop traffic
-		Global.getMigrationInfos().get(key).getMonitor().migrationState(true);
+		Global.getMigrationInfos().get(key).getMonitor().stopTraffic();
 
 		Protocol.AdminMessage message = Protocol.AdminMessage.newBuilder()
 				.setType(Protocol.AdminMessage.Type.MIGRATE)
@@ -157,7 +157,7 @@ public class CliDaemon implements Runnable {
 			Global.getMigrationInfos().put(newKey, mi);
 
 			// Resume traffic
-			Global.getMigrationInfos().get(newKey).getMonitor().migrationState(false);
+			Global.getMigrationInfos().get(newKey).getMonitor().resumeTraffic();
 			System.out.println("OK");
 		} else if (response.getType() == Protocol.AdminResponse.Type.ERROR)
 			throw new Exception("Error migrating container. Message: " + response.getPayload());

@@ -20,7 +20,15 @@ public class StateMonitor implements Preferences{
 			wait();
 	}
 
-	public synchronized void migrationState(boolean value) {
+	public synchronized void stopTraffic() {
+		this.migrationState(true);
+	}
+
+	public synchronized void resumeTraffic() {
+		this.migrationState(false);
+	}
+
+	private synchronized void migrationState(boolean value) {
 		this.isMigrating = value;
 		notifyAll();
 	}
