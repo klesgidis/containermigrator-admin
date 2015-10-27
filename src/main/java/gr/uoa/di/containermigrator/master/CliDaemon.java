@@ -25,7 +25,6 @@ public class CliDaemon implements Runnable {
 	private final static String start = "start";
 	private final static String migrate = "migrate";
 	private final static String nodes = "nodes";
-	private final static String list = "list";
 	private final static String help = "help";
 
 	private void usage() {
@@ -74,15 +73,7 @@ public class CliDaemon implements Runnable {
 						break;
 					}
 					case nodes: {
-						Map<String, Endpoint> peers = Global.getProperties().getWorkers();
-						for (Map.Entry<String, Endpoint> peer : peers.entrySet()) {
-							System.out.println(peer.getKey());
-						}
-						break;
-					}
-					case list: {
-						//if (args.length != 2) { usage(); break; }
-						Global.printMigrationInfoKeys();
+						handleNodes();
 						break;
 					}
 					case help: {
@@ -101,11 +92,6 @@ public class CliDaemon implements Runnable {
 						System.out.println(sb.toString());
 						break;
 					}
-					case "interrupt":{
-						String key = GeneralUtils.generateKey("worker1", "tomcat1");
-						Global.getMigrationInfos().get(key).updateMigrationInfo("worker2", "tomcat2", 12345 );
-						break;
-					}
 					default:
 						usage();
 				}
@@ -116,6 +102,11 @@ public class CliDaemon implements Runnable {
 	}
 
 	//region Handlers
+
+	private void handleNodes() throws Exception {
+		Iterable<String> response = ChannelUtils.pingNodes();
+		for (String str : response) System.out.println(str);
+	}
 
 	private void handleMigrate(String srcHost, String trgHost, String container) throws Exception {
 		String key = GeneralUtils.generateKey(srcHost, container);
